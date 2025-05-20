@@ -7,6 +7,7 @@ from PySide6.QtGui import QAction
 
 import sys
 import math
+import cmath
 import datetime
 
 INIT_X = 640
@@ -39,8 +40,10 @@ class MyWidget(QtWidgets.QLabel):
     def color(self, x, y):
         if self.fractal_type == 'mandelbrot':
             return self.color_mandelbrot(x, y)
-        else:
+        elif self.fractal_type == 'original':
             return self.color_grid(x, y)
+        else:
+            return self.color_collatz(x, y)
 
     def color_mandelbrot(self, x, y):
         max_iter = self.param
@@ -58,6 +61,24 @@ class MyWidget(QtWidgets.QLabel):
             r = hue
             g = 255 - hue
             b = hue // 2
+            return (r << 16) + (g << 8) + b
+
+    def color_collatz(self, x, y):
+        max_iter = self.param
+        zx, zy = x, y
+        for i in range(max_iter):
+            d = zx + zy * 1j
+            e = ((7 * d + 1) - cmath.cos(math.pi * d) * (5 * d + 2)) / 4
+            zx, zy = e.real, e.imag
+            if zx * zx + zy * zy > 10000.0:
+                break
+        if i == max_iter - 1:
+            return 0x000000
+        else:
+            hue = int(255 * i / max_iter) * 3
+            r = 10 + hue * 4
+            g = 20 + hue * 2
+            b = 30 + hue // 2
             return (r << 16) + (g << 8) + b
 
     def update(self):
@@ -173,6 +194,12 @@ class MainWindow(QtWidgets.QMainWindow):
         action_mandelbrot.triggered.connect(lambda: self.viewer.set_fractal_type("mandelbrot"))
         fractal_group.addAction(action_mandelbrot)
         fractal_menu.addAction(action_mandelbrot)
+
+        action_collatz = QAction("3n+1 / n:2", self, checkable=True)
+        action_collatz.setChecked(self.viewer.fractal_type == "collatz")
+        action_collatz.triggered.connect(lambda: self.viewer.set_fractal_type("collatz"))
+        fractal_group.addAction(action_collatz)
+        fractal_menu.addAction(action_collatz)
 
         # Действия
         actions_menu = menubar.addMenu("Действия")
