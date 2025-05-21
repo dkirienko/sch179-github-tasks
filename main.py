@@ -4,7 +4,7 @@
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QAction
-
+import torch
 import sys
 import math
 import datetime
