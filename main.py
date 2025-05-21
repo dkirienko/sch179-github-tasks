@@ -7,10 +7,47 @@ from PySide6.QtGui import QAction
 
 import sys
 import math
+import cmath
 import datetime
 
 INIT_X = 640
 INIT_Y = 480
+
+RED = 255 << 16
+GREEN = 255 << 8
+BLUE = 255
+BLACK = 0
+
+
+class NewtonFractal:
+    __slots__ = ["__tolerance", "__roots", "__colors"]
+    def __init__(self):
+        self.__tolerance = 0.0001
+        self.__roots = (
+            complex(1, 0),
+            complex(-0.5, math.sqrt(3) / 2),
+            complex(-0.5, -math.sqrt(3) / 2)
+        )
+        self.__colors = (RED, GREEN, BLUE)
+
+    @staticmethod
+    def __func(z):
+        return z * z * z - 1
+
+    @staticmethod
+    def __derivative(z):
+        return 3 * z * z
+
+    def get_color(self, x, y, max_iter_cnt):
+        z = complex(x, y)
+        for i in range(max_iter_cnt):
+            if z == 0:
+                return BLACK
+            z -= self.__func(z) / self.__derivative(z)
+            for r in range(len(self.__roots)):
+                if cmath.isclose(z, self.__roots[r], rel_tol=self.__tolerance):
+                    return self.__colors[r]
+        return BLACK
 
 
 class MyWidget(QtWidgets.QLabel):
@@ -19,6 +56,7 @@ class MyWidget(QtWidgets.QLabel):
         self.width = INIT_X
         self.height = INIT_Y
         self.resize(self.width, self.height)
+        self.newton = NewtonFractal()
         self.param = 128
         self.undo = []
         self.image = None
@@ -39,19 +77,23 @@ class MyWidget(QtWidgets.QLabel):
     def color(self, x, y):
         if self.fractal_type == 'mandelbrot':
             return self.color_mandelbrot(x, y)
+        elif self.fractal_type == "newton":
+            return self.color_newton(x, y)
         else:
             return self.color_grid(x, y)
 
     def color_mandelbrot(self, x, y):
         max_iter = self.param
         zx, zy = 0.0, 0.0
-        for i in range(max_iter):
+        i = 0
+        while i < max_iter:
             zx2, zy2 = zx * zx, zy * zy
             if zx2 + zy2 > 4.0:
                 break
             zy = 2.0 * zx * zy + y
             zx = zx2 - zy2 + x
-        if i == max_iter - 1:
+            i += 1
+        if i == max_iter:
             return 0x000000
         else:
             hue = int(255 * i / max_iter)
@@ -59,6 +101,9 @@ class MyWidget(QtWidgets.QLabel):
             g = 255 - hue
             b = hue // 2
             return (r << 16) + (g << 8) + b
+
+    def color_newton(self, x, y):
+        return self.newton.get_color(x, y, self.param)
 
     def update(self):
         xm = [self.xa + (self.xb - self.xa) * kx / self.width for kx in range(self.width)]
@@ -173,6 +218,12 @@ class MainWindow(QtWidgets.QMainWindow):
         action_mandelbrot.triggered.connect(lambda: self.viewer.set_fractal_type("mandelbrot"))
         fractal_group.addAction(action_mandelbrot)
         fractal_menu.addAction(action_mandelbrot)
+
+        action_newton = QAction("Бассейны Ньютона", self, checkable=True)
+        action_newton.setChecked(self.viewer.fractal_type == "newton")
+        action_newton.triggered.connect(lambda: self.viewer.set_fractal_type("newton"))
+        fractal_group.addAction(action_newton)
+        fractal_menu.addAction(action_newton)
 
         # Действия
         actions_menu = menubar.addMenu("Действия")
