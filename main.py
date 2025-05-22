@@ -1,9 +1,9 @@
-
 # -*- coding: utf-8 -*-
 
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QAction
+from math import sqrt
 
 import sys
 import math
@@ -11,6 +11,54 @@ import datetime
 
 INIT_X = 640
 INIT_Y = 480
+EPS = 0.000005
+
+
+class Point():
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    
+    def __mul__(self, other):
+        return self.x * other.x + self.y * other.y
+    
+    def __xor__(self, other):
+        return self.x * other.y - self.y * other.x
+    
+    def __add__(self, other):
+        return Point(self.x + other.x, self.y + other.y)
+    
+    def __sub__(self, other):
+        return Point(self.x - other.x, self.y - other.y)
+    
+    def __truediv__(self, k):
+        return Point(self.x / k, self.y / k)
+    
+    def len(self):
+        return sqrt(self.x ** 2 + self.y ** 2)
+
+
+def point_on_segment(A, B, P):
+    if abs((P - A) ^ (B - A)) > EPS:
+        return False
+    return ((P - A) * (B - A)) > -EPS and ((P - B) * (A - B)) > -EPS
+
+
+def sign(x):
+    if abs(x) < EPS:
+        return 0
+    if x > 0:
+        return 1
+    return -1
+
+
+def point_in_angle(A, O, B, P):
+    a, b, p = A - O, B - O, P - O
+    return sign(a ^ p) * sign(a ^ b) >= 0 and sign(b ^ p) * sign(b ^ a) >= 0
+
+
+def point_in_triangle(A, B, C, P):
+    return point_in_angle(A, B, C, P) and point_in_angle(A, C, B, P) and point_in_angle(B, A, C, P)
 
 
 class MyWidget(QtWidgets.QLabel):
@@ -39,9 +87,40 @@ class MyWidget(QtWidgets.QLabel):
     def color(self, x, y):
         if self.fractal_type == 'mandelbrot':
             return self.color_mandelbrot(x, y)
+        elif self.fractal_type == 'triangle':
+            return self.color_triangle(x, y)
         else:
             return self.color_grid(x, y)
-
+    
+    def color_triangle(self, x, y):
+        max_iter = min(64, self.param)
+        white = (255 << 16) + (255 << 8) + 255
+        black = 0
+        p = Point(x, y)
+        A = Point(-1.2, -1.2 / sqrt(3))
+        B = Point(1.2, -1.2 / sqrt(3))
+        C = Point(0, 2.4 / sqrt(3))
+        if not point_in_triangle(A, B, C, p):
+            return white
+        for iteration in range(max_iter):
+            if point_on_segment(A, B, p) or point_on_segment(A, C, p) or point_on_segment(B, C, p):
+                return black
+            pAB = (A + B) / 2
+            pAC = (A + C) / 2
+            pBC = (B + C) / 2
+            if point_in_triangle(pAC, pBC, C, p):
+                A = pAC
+                B = pBC
+            elif point_in_triangle(A, pAB, pAC, p):
+                B = pAB
+                C = pAC
+            elif point_in_triangle(pAB, B, pBC, p):
+                A = pAB
+                C = pBC
+            else:
+                return white
+        return white
+    
     def color_mandelbrot(self, x, y):
         max_iter = self.param
         zx, zy = 0.0, 0.0
@@ -176,6 +255,12 @@ class MainWindow(QtWidgets.QMainWindow):
         fractal_group.addAction(action_mandelbrot)
         fractal_menu.addAction(action_mandelbrot)
 
+        action_triangle = QAction("Треугольник Серпинского", self, checkable=True)
+        action_triangle.setChecked(self.viewer.fractal_type == "triangle")
+        action_triangle.triggered.connect(lambda: self.viewer.set_fractal_type("triangle"))
+        fractal_group.addAction(action_triangle)
+        fractal_menu.addAction(action_triangle)
+    
         # Действия
         actions_menu = menubar.addMenu("Действия")
 
