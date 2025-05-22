@@ -39,8 +39,10 @@ class MyWidget(QtWidgets.QLabel):
     def color(self, x, y):
         if self.fractal_type == 'mandelbrot':
             return self.color_mandelbrot(x, y)
-        else:
+        elif self.fractal_type == 'original':
             return self.color_grid(x, y)
+        else:
+            return self.color_julia(x, y)
 
     def color_mandelbrot(self, x, y):
         max_iter = self.param
@@ -59,6 +61,26 @@ class MyWidget(QtWidgets.QLabel):
             g = 255 - hue
             b = hue // 2
             return (r << 16) + (g << 8) + b
+    
+    def color_julia(self, x, y):
+        max_iter = self.param
+        zx, zy = x, y
+        for i in range(max_iter):
+            zx2, zy2 = zx * zx, zy * zy
+            if zx2 + zy2 > 4.0:
+                break
+            zy = 2.0 * zx * zy + 0.13
+            zx = zx2 - zy2 - 1
+        if i == max_iter - 1:
+            return 0x000000
+        else:
+            hue = int(255 * i / max_iter)
+            r = hue
+            g = 255 - hue
+            b = hue // 2
+            return (r << 16) + (g << 8) + b
+    
+
 
     def update(self):
         xm = [self.xa + (self.xb - self.xa) * kx / self.width for kx in range(self.width)]
@@ -173,6 +195,12 @@ class MainWindow(QtWidgets.QMainWindow):
         action_mandelbrot.triggered.connect(lambda: self.viewer.set_fractal_type("mandelbrot"))
         fractal_group.addAction(action_mandelbrot)
         fractal_menu.addAction(action_mandelbrot)
+
+        action_julia = QAction("Жюлиа", self, checkable=True)
+        action_julia.setChecked(self.viewer.fractal_type == "julia")
+        action_julia.triggered.connect(lambda: self.viewer.set_fractal_type("julia"))
+        fractal_group.addAction(action_julia)
+        fractal_menu.addAction(action_julia)
 
         # Действия
         actions_menu = menubar.addMenu("Действия")
