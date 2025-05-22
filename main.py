@@ -45,13 +45,15 @@ class MyWidget(QtWidgets.QLabel):
     def color_mandelbrot(self, x, y):
         max_iter = self.param
         zx, zy = 0.0, 0.0
-        for i in range(max_iter):
+        i = 0
+        while i < max_iter:
             zx2, zy2 = zx * zx, zy * zy
             if zx2 + zy2 > 4.0:
                 break
             zy = 2.0 * zx * zy + y
             zx = zx2 - zy2 + x
-        if i == max_iter - 1:
+            i += 1
+        if i == max_iter:
             return 0x000000
         else:
             hue = int(255 * i / max_iter)
