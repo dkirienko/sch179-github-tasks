@@ -1,9 +1,9 @@
-
 # -*- coding: utf-8 -*-
 
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QAction
+from cmath import *
 
 import sys
 import math
@@ -11,7 +11,6 @@ import datetime
 
 INIT_X = 640
 INIT_Y = 480
-
 
 class MyWidget(QtWidgets.QLabel):
     def __init__(self, parent=None):
@@ -39,6 +38,8 @@ class MyWidget(QtWidgets.QLabel):
     def color(self, x, y):
         if self.fractal_type == 'mandelbrot':
             return self.color_mandelbrot(x, y)
+        elif self.fractal_type == 'newton6':
+            return self.color_newton6(x, y)
         else:
             return self.color_grid(x, y)
 
@@ -59,6 +60,31 @@ class MyWidget(QtWidgets.QLabel):
             g = 255 - hue
             b = hue // 2
             return (r << 16) + (g << 8) + b
+    
+    def color_newton6(self, x, y):
+        max_iter = self.param
+        f = lambda z: pow(z, 6) - 1
+        fd = lambda z: 5 * pow(z, 5)
+        roots = [-1, 1, complex(-0.5, sqrt(3) / 2), complex(-0.5, -sqrt(3) / 2), complex(0.5, sqrt(3) / 2), complex(0.5, -sqrt(3) / 2)]
+        colorlist = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0), (0, 1, 1), (1, 0, 1)]
+        zx, zy = x, y
+        z = complex(zx, zy)
+        for i in range(max_iter):
+            try:
+                z -= f(z) / fd(z)
+            except:
+                break
+            tol = 1e-6
+            for j in range(len(roots)):
+                d = z - roots[j]
+                if (abs(d.real) < tol and abs(d.imag) < tol):
+                    hue = min(255, max(0, 255 - int(255 * i / max_iter * 3)))
+                    col = 0
+                    for k in range(3):
+                        col += (hue * colorlist[j][k]) << (k * 8)
+                    return col
+        return 0x000000
+            
 
     def update(self):
         xm = [self.xa + (self.xb - self.xa) * kx / self.width for kx in range(self.width)]
@@ -173,6 +199,12 @@ class MainWindow(QtWidgets.QMainWindow):
         action_mandelbrot.triggered.connect(lambda: self.viewer.set_fractal_type("mandelbrot"))
         fractal_group.addAction(action_mandelbrot)
         fractal_menu.addAction(action_mandelbrot)
+        
+        action_newton6 = QAction("Ньютон p(x) = x⁶ - 1", self, checkable=True)
+        action_newton6.setChecked(self.viewer.fractal_type == "newton6")
+        action_newton6.triggered.connect(lambda: self.viewer.set_fractal_type("newton6"))
+        fractal_group.addAction(action_newton6)
+        fractal_menu.addAction(action_newton6)
 
         # Действия
         actions_menu = menubar.addMenu("Действия")
