@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -23,7 +22,8 @@ class MyWidget(QtWidgets.QLabel):
         self.undo = []
         self.image = None
         self.set_fractal_type('original')
-        self.rubberBand = QtWidgets.QRubberBand(QtWidgets.QRubberBand.Shape.Rectangle, self)
+        self.rubberBand = QtWidgets.QRubberBand(
+            QtWidgets.QRubberBand.Shape.Rectangle, self)
 
     def color_grid(self, x, y):
         red = int(128 + self.param * math.sin((x + y) * 16))
@@ -39,6 +39,8 @@ class MyWidget(QtWidgets.QLabel):
     def color(self, x, y):
         if self.fractal_type == 'mandelbrot':
             return self.color_mandelbrot(x, y)
+        elif self.fractal_type == 'julia':
+            return self.color_julia(x, y)
         else:
             return self.color_grid(x, y)
 
@@ -60,10 +62,30 @@ class MyWidget(QtWidgets.QLabel):
             b = hue // 2
             return (r << 16) + (g << 8) + b
 
+    def color_julia(self, x, y):
+        max_iter = self.param
+        zx, zy = x, y
+        c = complex(-0.4, 0.6)
+        for i in range(max_iter):
+            zx, zy = zx * zx - zy * zy + c.real, 2 * zx * zy + c.imag
+            if zx * zx + zy * zy > 4.0:
+                break
+        if i == max_iter - 1:
+            return 0x000000
+        else:
+            hue = int(255 * i / max_iter)
+            r = hue
+            g = 255 - hue
+            b = hue // 2
+            return (r << 16) + (g << 8) + b
+
     def update(self):
-        xm = [self.xa + (self.xb - self.xa) * kx / self.width for kx in range(self.width)]
-        ym = [self.yb + (self.ya - self.yb) * ky / self.height for ky in range(self.height)]
-        self.image = QtGui.QImage(self.width, self.height, QtGui.QImage.Format.Format_RGB32)
+        xm = [self.xa + (self.xb - self.xa) * kx /
+              self.width for kx in range(self.width)]
+        ym = [self.yb + (self.ya - self.yb) * ky /
+              self.height for ky in range(self.height)]
+        self.image = QtGui.QImage(
+            self.width, self.height, QtGui.QImage.Format.Format_RGB32)
         for i in range(self.width):
             for j in range(self.height):
                 self.image.setPixel(i, j, self.color(xm[i], ym[j]))
@@ -94,7 +116,8 @@ class MyWidget(QtWidgets.QLabel):
     def mouseMoveEvent(self, event):
         if event.button() == QtCore.Qt.MouseButton.RightButton:
             return
-        self.rubberBand.setGeometry(QtCore.QRect(self.origin, event.position().toPoint()).normalized())
+        self.rubberBand.setGeometry(QtCore.QRect(
+            self.origin, event.position().toPoint()).normalized())
 
     def mouseReleaseEvent(self, event):
         if event.button() == QtCore.Qt.MouseButton.RightButton:
@@ -110,8 +133,12 @@ class MyWidget(QtWidgets.QLabel):
         x1, x2 = min(x1, x2), max(x1, x2)
         y1, y2 = min(y1, y2), max(y1, y2)
         self.undo.append((self.xa, self.xb, self.ya, self.yb))
-        self.xa, self.xb = self.xa + x1 * (self.xb - self.xa) / self.width, self.xa + x2 * (self.xb - self.xa) / self.width
-        self.yb, self.ya = self.yb + y1 * (self.ya - self.yb) / self.height, self.yb + y2 * (self.ya - self.yb) / self.height
+        self.xa, self.xb = self.xa + x1 * \
+            (self.xb - self.xa) / self.width, self.xa + \
+            x2 * (self.xb - self.xa) / self.width
+        self.yb, self.ya = self.yb + y1 * \
+            (self.ya - self.yb) / self.height, self.yb + \
+            y2 * (self.ya - self.yb) / self.height
         self.update()
 
     @Slot()
@@ -122,15 +149,18 @@ class MyWidget(QtWidgets.QLabel):
 
     @Slot()
     def action_save(self):
-        filename = "fractal_{:%Y-%m-%d_%H-%M-%S}.jpg".format(datetime.datetime.now())
-        filename, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Select file to save image", filename, "JPEG files (*.jpg)")
+        filename = "fractal_{:%Y-%m-%d_%H-%M-%S}.jpg".format(
+            datetime.datetime.now())
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Select file to save image", filename, "JPEG files (*.jpg)")
         if filename:
             self.image.save(filename, "JPEG", 100)
             print("Image saved as", filename)
 
     @Slot()
     def action_set_param(self):
-        param, ok_pressed = QtWidgets.QInputDialog.getInt(self, "Enter parameter", "", self.param, 32, 256, 1)
+        param, ok_pressed = QtWidgets.QInputDialog.getInt(
+            self, "Enter parameter", "", self.param, 32, 256, 1)
         if ok_pressed:
             self.param = param
             self.update()
@@ -138,10 +168,21 @@ class MyWidget(QtWidgets.QLabel):
     def set_fractal_type(self, ftype):
         self.fractal_type = ftype
         self.undo.clear()
-        self.xa = -self.width / 320
-        self.xb = self.width / 320
-        self.ya = -self.height / 320
-        self.yb = self.height / 320
+        if ftype == 'original':
+            self.xa = -self.width / 320
+            self.xb = self.width / 320
+            self.ya = -self.height / 320
+            self.yb = self.height / 320
+        elif ftype == 'mandelbrot':
+            self.xa = -2.0
+            self.xb = 1.0
+            self.ya = -1.5
+            self.yb = 1.5
+        elif ftype == 'julia':
+            self.xa = -1.5
+            self.xb = 1.5
+            self.ya = -1.5
+            self.yb = 1.5
         self.update()
 
 
@@ -164,15 +205,23 @@ class MainWindow(QtWidgets.QMainWindow):
 
         action_original = QAction("Муар (не фрактал)", self, checkable=True)
         action_original.setChecked(self.viewer.fractal_type == "original")
-        action_original.triggered.connect(lambda: self.viewer.set_fractal_type("original"))
+        action_original.triggered.connect(
+            lambda: self.viewer.set_fractal_type("original"))
         fractal_group.addAction(action_original)
         fractal_menu.addAction(action_original)
 
         action_mandelbrot = QAction("Мандельброт", self, checkable=True)
         action_mandelbrot.setChecked(self.viewer.fractal_type == "mandelbrot")
-        action_mandelbrot.triggered.connect(lambda: self.viewer.set_fractal_type("mandelbrot"))
+        action_mandelbrot.triggered.connect(
+            lambda: self.viewer.set_fractal_type("mandelbrot"))
         fractal_group.addAction(action_mandelbrot)
         fractal_menu.addAction(action_mandelbrot)
+
+        action_julia = QAction("Жюлиа", self, checkable=True)
+        action_julia.triggered.connect(
+            lambda: self.viewer.set_fractal_type("julia"))
+        fractal_group.addAction(action_julia)
+        fractal_menu.addAction(action_julia)
 
         # Действия
         actions_menu = menubar.addMenu("Действия")
