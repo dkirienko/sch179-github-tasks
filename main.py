@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -24,6 +23,7 @@ class MyWidget(QtWidgets.QLabel):
         self.image = None
         self.set_fractal_type('original')
         self.rubberBand = QtWidgets.QRubberBand(QtWidgets.QRubberBand.Shape.Rectangle, self)
+        self.c = (-0.4, 0.6)  # Константа для Жюлиа
 
     def color_grid(self, x, y):
         red = int(128 + self.param * math.sin((x + y) * 16))
@@ -39,6 +39,8 @@ class MyWidget(QtWidgets.QLabel):
     def color(self, x, y):
         if self.fractal_type == 'mandelbrot':
             return self.color_mandelbrot(x, y)
+        elif self.fractal_type == 'julia':
+            return self.color_julia(x, y)
         else:
             return self.color_grid(x, y)
 
@@ -58,6 +60,24 @@ class MyWidget(QtWidgets.QLabel):
             r = hue
             g = 255 - hue
             b = hue // 2
+            return (r << 16) + (g << 8) + b
+
+    def color_julia(self, x, y):
+        max_iter = self.param
+        zx, zy = x, y
+        for i in range(max_iter):
+            zx2, zy2 = zx * zx, zy * zy
+            if zx2 + zy2 > 4.0:
+                break
+            zy = 2.0 * zx * zy + self.c[1]
+            zx = zx2 - zy2 + self.c[0]
+        if i == max_iter - 1:
+            return 0x000000
+        else:
+            hue = int(255 * i / max_iter)
+            r = hue
+            g = (hue + 85) % 256
+            b = (hue + 170) % 256
             return (r << 16) + (g << 8) + b
 
     def update(self):
@@ -173,6 +193,11 @@ class MainWindow(QtWidgets.QMainWindow):
         action_mandelbrot.triggered.connect(lambda: self.viewer.set_fractal_type("mandelbrot"))
         fractal_group.addAction(action_mandelbrot)
         fractal_menu.addAction(action_mandelbrot)
+
+        action_julia = QAction("Множество Жюлиа", self, checkable=True)
+        action_julia.triggered.connect(lambda: self.viewer.set_fractal_type("julia"))
+        fractal_group.addAction(action_julia)
+        fractal_menu.addAction(action_julia)
 
         # Действия
         actions_menu = menubar.addMenu("Действия")
