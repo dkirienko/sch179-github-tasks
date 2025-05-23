@@ -89,6 +89,8 @@ class MyWidget(QtWidgets.QLabel):
             return self.color_mandelbrot(x, y)
         elif self.fractal_type == 'triangle':
             return self.color_triangle(x, y)
+        elif self.fractal_type == '4':
+            return self.color_4(x, y)
         else:
             return self.color_grid(x, y)
     
@@ -131,6 +133,27 @@ class MyWidget(QtWidgets.QLabel):
                 break
             zy = 2.0 * zx * zy + y
             zx = zx2 - zy2 + x
+            i += 1
+        if i == max_iter:
+            return 0x000000
+        else:
+            hue = int(255 * i / max_iter)
+            r = hue
+            g = 255 - hue
+            b = hue // 2
+            return (r << 16) + (g << 8) + b
+    
+    
+    def color_4(self, x, y):
+        max_iter = self.param
+        zx, zy = x, y
+        i = 0
+        while i < max_iter:
+            zx2, zy2 = zx * zx, zy * zy
+            if zx2 + zy2 > 4.0:
+                break
+            zy = 2.0 * zx * zy + 0.179
+            zx = zx2 - zy2 + -0.8
             i += 1
         if i == max_iter:
             return 0x000000
@@ -260,7 +283,13 @@ class MainWindow(QtWidgets.QMainWindow):
         action_triangle.triggered.connect(lambda: self.viewer.set_fractal_type("triangle"))
         fractal_group.addAction(action_triangle)
         fractal_menu.addAction(action_triangle)
-    
+
+        action_4 = QAction("Жюлиа", self, checkable=True)
+        action_4.setChecked(self.viewer.fractal_type == "4")
+        action_4.triggered.connect(lambda: self.viewer.set_fractal_type("4"))
+        fractal_group.addAction(action_4)
+        fractal_menu.addAction(action_4)
+        
         # Действия
         actions_menu = menubar.addMenu("Действия")
 
