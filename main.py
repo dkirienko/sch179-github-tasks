@@ -39,7 +39,7 @@ class MyWidget(QtWidgets.QLabel):
         if self.fractal_type == 'mandelbrot':
             return self.color_mandelbrot(x, y)
         elif self.fractal_type == 'burning_ship':
-            return self.color_burning_ship(x, y)
+            return self.color_burning_ship(x, - y)
         else:
             return self.color_grid(x, y)
 
