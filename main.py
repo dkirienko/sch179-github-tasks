@@ -25,7 +25,7 @@ class MyWidget(QtWidgets.QLabel):
         self.set_fractal_type('original')
         self.rubberBand = QtWidgets.QRubberBand(QtWidgets.QRubberBand.Shape.Rectangle, self)
 
-    def color_grid(self, x, y):
+    def color_grid(self, x, y): 
         red = int(128 + self.param * math.sin((x + y) * 16))
         green = int(128 + (x + y) * 16)
         blue = int(128 + self.param * math.sin((x - y) * 16))
@@ -37,6 +37,8 @@ class MyWidget(QtWidgets.QLabel):
         return (red << 16) + (green << 8) + blue
 
     def color(self, x, y):
+        if self.fractal_type == 'koch':
+            return 0xFFFFFF
         if self.fractal_type == 'mandelbrot':
             return self.color_mandelbrot(x, y)
         else:
@@ -59,8 +61,37 @@ class MyWidget(QtWidgets.QLabel):
             g = 255 - hue
             b = hue // 2
             return (r << 16) + (g << 8) + b
+        
+    def coc(self, n, x1, y1, x2, y2, painter):
+        if n == 0:
+            painter.drawLine(x1, y1, x2, y2)
+            return
+
+        px = (x1 + x2) / 2 + (y2 - y1) * math.sqrt(3) / 6
+        py = (y1 + y2) / 2 - (x2 - x1) * math.sqrt(3) / 6
+        
+        self.coc(n - 1, x1, y1, x1 + (x2 - x1) / 3, y1 + (y2 - y1) / 3, painter)
+        self.coc(n - 1, x1 + (x2 - x1) / 3, y1 + (y2 - y1) / 3, px, py, painter)
+        self.coc(n - 1, px, py, x2 - (x2 - x1) / 3, y2 - (y2 - y1) / 3, painter)
+        self.coc(n - 1, x2 - (x2 - x1) / 3, y2 - (y2 - y1) / 3, x2, y2, painter)
+    
 
     def update(self):
+        if self.fractal_type == 'koch':
+            self.image = QtGui.QImage(self.width, self.height, QtGui.QImage.Format.Format_RGB32)
+            self.image.fill(QtGui.QColor("white"))
+            painter = QtGui.QPainter(self.image)
+            painter.setPen(QtGui.QPen(QtGui.QColor("black")))
+
+            depth = self.param // 32
+
+            self.coc(depth, self.xa, self.ya, self.xb, self.yb, painter)
+
+            painter.end()
+            self.setPixmap(QtGui.QPixmap.fromImage(self.image))
+            return
+        
+
         xm = [self.xa + (self.xb - self.xa) * kx / self.width for kx in range(self.width)]
         ym = [self.yb + (self.ya - self.yb) * ky / self.height for ky in range(self.height)]
         self.image = QtGui.QImage(self.width, self.height, QtGui.QImage.Format.Format_RGB32)
@@ -68,19 +99,20 @@ class MyWidget(QtWidgets.QLabel):
             for j in range(self.height):
                 self.image.setPixel(i, j, self.color(xm[i], ym[j]))
         painter = QtGui.QPainter(self.image)
+
         painter.setPen(QtGui.QColor("white"))
         painter.drawText(QtCore.QRectF(0, 0, self.width, self.height),
-                         QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
-                         "{:.4g}".format(self.yb))
+                            QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
+                            "{:.4g}".format(self.yb))
         painter.drawText(QtCore.QRectF(0, 0, self.width, self.height),
-                         QtCore.Qt.AlignmentFlag.AlignBottom | QtCore.Qt.AlignmentFlag.AlignHCenter,
-                         "{:.4g}".format(self.ya))
+                            QtCore.Qt.AlignmentFlag.AlignBottom | QtCore.Qt.AlignmentFlag.AlignHCenter,
+                            "{:.4g}".format(self.ya))
         painter.drawText(QtCore.QRectF(0, 0, self.width, self.height),
-                         QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignLeft,
-                         "{:.4g}".format(self.xa))
+                            QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignLeft,
+                            "{:.4g}".format(self.xa))
         painter.drawText(QtCore.QRectF(0, 0, self.width, self.height),
-                         QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignRight,
-                         "{:.4g}".format(self.xb))
+                            QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignRight,
+                            "{:.4g}".format(self.xb))
         painter.end()
         self.setPixmap(QtGui.QPixmap.fromImage(self.image))
 
@@ -138,10 +170,17 @@ class MyWidget(QtWidgets.QLabel):
     def set_fractal_type(self, ftype):
         self.fractal_type = ftype
         self.undo.clear()
-        self.xa = -self.width / 320
-        self.xb = self.width / 320
-        self.ya = -self.height / 320
-        self.yb = self.height / 320
+        if ftype == 'koch':
+            self.xa = 0
+            self.xb = self.width
+            self.ya = self.height // 2
+            self.yb = self.height // 2
+        else:
+            self.xa = -self.width / 320
+            self.xb = self.width / 320
+            self.ya = -self.height / 320
+            self.yb = self.height / 320
+        
         self.update()
 
 
@@ -173,6 +212,12 @@ class MainWindow(QtWidgets.QMainWindow):
         action_mandelbrot.triggered.connect(lambda: self.viewer.set_fractal_type("mandelbrot"))
         fractal_group.addAction(action_mandelbrot)
         fractal_menu.addAction(action_mandelbrot)
+        
+        action_koch = QAction("Снежинка Коха", self, checkable=True)
+        action_koch.setChecked(self.viewer.fractal_type == "koch")
+        action_koch.triggered.connect(lambda: self.viewer.set_fractal_type("koch"))
+        fractal_group.addAction(action_koch)
+        fractal_menu.addAction(action_koch)
 
         # Действия
         actions_menu = menubar.addMenu("Действия")
