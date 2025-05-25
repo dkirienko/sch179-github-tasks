@@ -1,10 +1,9 @@
-
 # -*- coding: utf-8 -*-
 
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QAction
-
+from PIL import Image
 import sys
 import math
 import datetime
@@ -39,6 +38,8 @@ class MyWidget(QtWidgets.QLabel):
     def color(self, x, y):
         if self.fractal_type == 'mandelbrot':
             return self.color_mandelbrot(x, y)
+        elif self.fractal_type == 'burning_ship':
+            return self.color_burning_ship(x, - y)
         else:
             return self.color_grid(x, y)
 
@@ -50,6 +51,24 @@ class MyWidget(QtWidgets.QLabel):
             if zx2 + zy2 > 4.0:
                 break
             zy = 2.0 * zx * zy + y
+            zx = zx2 - zy2 + x
+        if i == max_iter - 1:
+            return 0x000000
+        else:
+            hue = int(255 * i / max_iter)
+            r = hue
+            g = 255 - hue
+            b = hue // 2
+            return (r << 16) + (g << 8) + b
+        
+    def color_burning_ship(self, x, y):
+        max_iter = self.param
+        zx, zy = 0.0, 0.0
+        for i in range(max_iter):
+            zx2, zy2 = abs(zx) * abs(zx), abs(zy) * abs(zy)
+            if zx2 + zy2 > 4.0:
+                break
+            zy = 2.0 * abs(zx) * abs(zy) + y
             zx = zx2 - zy2 + x
         if i == max_iter - 1:
             return 0x000000
@@ -173,6 +192,12 @@ class MainWindow(QtWidgets.QMainWindow):
         action_mandelbrot.triggered.connect(lambda: self.viewer.set_fractal_type("mandelbrot"))
         fractal_group.addAction(action_mandelbrot)
         fractal_menu.addAction(action_mandelbrot)
+        
+        action_burning_ship = QAction("Горящий корабль", self, checkable=True)
+        action_burning_ship.setChecked(self.viewer.fractal_type == "burning_ship")
+        action_burning_ship.triggered.connect(lambda: self.viewer.set_fractal_type("burning_ship"))
+        fractal_group.addAction(action_burning_ship)
+        fractal_menu.addAction(action_burning_ship)        
 
         # Действия
         actions_menu = menubar.addMenu("Действия")
